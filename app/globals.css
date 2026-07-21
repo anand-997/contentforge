@@ -1,0 +1,158 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  * {
+    border-color: theme("colors.hairline");
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-ink-800 text-white/90 antialiased;
+    font-family: var(--font-sans);
+    /* Layered atmosphere: faint grid + teal radial glow at the top. */
+    background-image:
+      theme("backgroundImage.teal-radial"),
+      theme("backgroundImage.grid-faint");
+    background-size: 100% 100%, 40px 40px, 40px 40px;
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background-color: rgba(0, 212, 170, 0.28);
+    color: #ffffff;
+  }
+
+  /* Scrollbars — slim, brand-tinted. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 212, 170, 0.35) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(139, 148, 158, 0.28);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 212, 170, 0.45);
+  }
+
+  /* Respect reduced motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Glass-ish elevated panel used across cards and the sidebar. */
+  .panel {
+    @apply rounded-2xl border border-hairline bg-ink-700/70 shadow-panel backdrop-blur-sm;
+  }
+
+  /* Shimmer skeleton block. */
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-ink-500/60;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.06),
+      transparent
+    );
+  }
+
+  /* Focus ring shared by interactive elements. */
+  .focus-ring {
+    @apply outline-none ring-offset-2 ring-offset-ink-800 focus-visible:ring-2 focus-visible:ring-teal;
+  }
+
+  /* Shared text input / textarea / select styling for settings forms. */
+  .input {
+    @apply focus-ring min-h-[40px] w-full rounded-lg border border-hairline bg-ink-700 px-2.5 py-1.5 text-sm text-white placeholder:text-subtext/50 transition-colors;
+  }
+}
+
+/* react-markdown prose styling, scoped to .md-body */
+.md-body {
+  @apply text-[0.94rem] leading-relaxed text-white/85;
+}
+.md-body h1,
+.md-body h2,
+.md-body h3 {
+  @apply font-semibold text-white;
+}
+.md-body h1 {
+  @apply mb-3 mt-6 text-2xl;
+}
+.md-body h2 {
+  @apply mb-2 mt-6 border-b border-hairline pb-1 text-xl;
+}
+.md-body h3 {
+  @apply mb-2 mt-4 text-lg;
+}
+.md-body p {
+  @apply my-3;
+}
+.md-body ul {
+  @apply my-3 list-disc space-y-1 pl-5;
+}
+.md-body ol {
+  @apply my-3 list-decimal space-y-1 pl-5;
+}
+.md-body a {
+  @apply text-teal underline decoration-teal/40 underline-offset-2 hover:text-teal-soft;
+}
+.md-body blockquote {
+  @apply my-3 border-l-2 border-teal/50 pl-4 italic text-subtext;
+}
+.md-body code {
+  @apply rounded bg-ink-500 px-1.5 py-0.5 font-mono text-[0.85em] text-teal-soft;
+}
+.md-body pre {
+  @apply my-4 overflow-x-auto rounded-xl border border-hairline bg-ink-900 p-4;
+}
+.md-body pre code {
+  @apply bg-transparent p-0 text-white/85;
+}
+.md-body table {
+  @apply my-4 w-full border-collapse text-sm;
+}
+.md-body th,
+.md-body td {
+  @apply border border-hairline px-3 py-2 text-left;
+}
+.md-body th {
+  @apply bg-ink-600 font-semibold;
+}
+.md-body hr {
+  @apply my-6 border-hairline;
+}

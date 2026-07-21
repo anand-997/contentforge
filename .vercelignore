@@ -1,0 +1,23 @@
+# Never upload secrets or local/runtime data to the deployment.
+.env
+.env.local
+.env.*
+
+# Local-mode / heavy local-only data (folder mode needs none of these server-side).
+my_learnings/
+social-media-config/
+reference/
+data/
+logs/
+public/images/
+content_calendar.xlsx
+weekly-plan.json
+generation-log.json
+image.png
+image1.png
+
+# Dev-only scripts and build artifacts.
+scripts/
+.next/
+node_modules/
+*.tsbuildinfo

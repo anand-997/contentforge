@@ -1,0 +1,29 @@
+.env
+.env.local
+
+# Runtime data root moved to social-media-config/contentforge/ (a sibling of
+# this app directory, see lib/dataDir.ts) — these no longer live here, but
+# kept in case CONTENTFORGE_DATA_DIR is ever unset back to process.cwd().
+content_calendar.xlsx
+weekly-plan.json
+generation-log.json
+content-domain.json
+agent-prompts.json
+public/images/
+logs/
+data/briefs/
+data/knowledge/
+
+node_modules/
+.next/
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+
+# Not part of the app: personal reference material and a stray OCR language
+# pack (tesseract.js manages its own "eng" data at runtime; this file at the
+# repo root isn't read by anything).
+reference/
+eng.traineddata
+image.png
+image1.png

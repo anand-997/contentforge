@@ -134,8 +134,15 @@ Everything is editable from the dashboard's **Settings**:
 - **Agent prompts** — the RICE-POT role/instructions/tone layered into each
   generation stage.
 - **Weekly plan** — per-weekday theme and brand voice rotation.
+- **API keys** (folder/Drive mode) — a labeled form for Deepseek, OpenAI,
+  Gemini, Tavily, and each publishing platform's key/token, instead of
+  hand-editing `credentials.env`.
 - **Configuration** (local mode) — Deepseek model and cron schedule, inline
   in the sidebar.
+
+Every Settings form above opens **read-only** — click **Edit** to unlock its
+fields, make your changes, then **Save**. This avoids accidentally changing a
+saved value with a stray click.
 
 ---
 

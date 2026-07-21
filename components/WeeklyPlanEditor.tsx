@@ -47,6 +47,11 @@ export function WeeklyPlanEditor({
   onClose,
 }: WeeklyPlanEditorProps): JSX.Element {
   const toast = useToast();
+  // Opens read-only — see components/ContentDomainEditor.tsx for why. Only
+  // gates the fields inside an expanded day (see the fieldset below); the
+  // accordion toggle itself stays usable so browsing days doesn't require
+  // clicking "Edit" first.
+  const [locked, setLocked] = useState(true);
   const [draft, setDraft] = useState<Record<Weekday, WeekdayPlan>>(plan);
   const [open, setOpen] = useState<Weekday | null>("mon");
   const [saving, setSaving] = useState(false);
@@ -116,7 +121,14 @@ export function WeeklyPlanEditor({
                   </span>
                 </button>
                 {isOpen && (
-                  <div className="space-y-2.5 border-t border-hairline p-3">
+                  // Locked only disables the fields inside — expanding/
+                  // collapsing a day to view it stays available without
+                  // clicking "Edit" first (see the toggle button above,
+                  // which is outside this fieldset).
+                  <fieldset
+                    disabled={locked}
+                    className="m-0 space-y-2.5 border-x-0 border-b-0 border-t border-hairline p-3"
+                  >
                     <label className="block">
                       <span className="mb-1 block text-[0.7rem] text-subtext">Theme</span>
                       <input
@@ -191,7 +203,7 @@ export function WeeklyPlanEditor({
                         />
                       </label>
                     </div>
-                  </div>
+                  </fieldset>
                 )}
               </div>
             );
@@ -199,23 +211,44 @@ export function WeeklyPlanEditor({
         </div>
 
         <div className="mt-5 flex gap-2 border-t border-hairline pt-4">
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={saving}
-            className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-glow transition-all hover:bg-teal-soft disabled:opacity-60"
-          >
-            {saving ? <Spinner className="text-ink-900" /> : null}
-            {saving ? "Saving…" : "Save"}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="focus-ring rounded-xl border border-hairline px-4 py-2.5 text-sm text-subtext hover:text-white disabled:opacity-50"
-          >
-            Cancel
-          </button>
+          {locked ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setLocked(false)}
+                className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-glow transition-all hover:bg-teal-soft"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="focus-ring rounded-xl border border-hairline px-4 py-2.5 text-sm text-subtext hover:text-white"
+              >
+                Close
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={saving}
+                className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-glow transition-all hover:bg-teal-soft disabled:opacity-60"
+              >
+                {saving ? <Spinner className="text-ink-900" /> : null}
+                {saving ? "Saving…" : "Save"}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={saving}
+                className="focus-ring rounded-xl border border-hairline px-4 py-2.5 text-sm text-subtext hover:text-white disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>,

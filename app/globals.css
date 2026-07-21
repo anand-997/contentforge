@@ -97,7 +97,7 @@
 
   /* Shared text input / textarea / select styling for settings forms. */
   .input {
-    @apply focus-ring min-h-[40px] w-full rounded-lg border border-hairline bg-ink-700 px-2.5 py-1.5 text-sm text-white placeholder:text-subtext/50 transition-colors;
+    @apply focus-ring min-h-[40px] w-full rounded-lg border border-hairline bg-ink-700 px-2.5 py-1.5 text-sm text-white placeholder:text-subtext/50 transition-colors disabled:cursor-not-allowed disabled:opacity-50;
   }
 }
 

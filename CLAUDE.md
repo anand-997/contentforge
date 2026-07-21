@@ -127,6 +127,23 @@ block that traps un-portaled `position: fixed` children inside that
 ancestor's box instead of the viewport. See `components/TopicDetailModal.tsx`
 for the reference pattern.
 
+**Settings editors open read-only, not directly editable.** All four
+(`components/ContentDomainEditor.tsx`, `AgentPromptsEditor.tsx`,
+`WeeklyPlanEditor.tsx`, `CredentialsEditor.tsx`) mount with every field
+disabled and an **Edit** button in the footer; clicking it unlocks the form
+and swaps the footer to **Save**/**Cancel**. Implement this with
+`<fieldset disabled={locked}>` wrapping the field group — it disables every
+nested input/select/textarea/button in one shot, rather than tagging each
+control individually. `WeeklyPlanEditor` scopes the fieldset to just the
+fields *inside* an expanded weekday, not its accordion toggle, so browsing
+days doesn't require unlocking first. Follow this pattern for any new
+Settings form.
+
+API keys (`credentials.env`) are edited as a proper labeled form
+(`CredentialsEditor.tsx`), not a raw textarea — `lib/credentialsTemplate.ts`'s
+`serializeCredentials()` writes values back into the full commented template
+so the file's explanatory comments survive a save.
+
 ## Hard constraints (do not violate)
 
 - **TypeScript strict mode, no `any` anywhere.**

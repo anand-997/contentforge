@@ -2,6 +2,8 @@
 // The credentials.env template written into a user's folder. Shared by the
 // server template route and the client storage providers so both stay in sync.
 
+import type { Credentials } from "@/lib/client/contract";
+
 export const CREDENTIALS_TEMPLATE = `# ContentForge credentials
 # Fill in your own API keys below, save this file, then reload the folder.
 # These keys stay in YOUR folder and are sent to the server only to make your
@@ -52,3 +54,31 @@ LINKEDIN_USER_ID=
 export const CREDENTIALS_FILENAME = "credentials.env";
 export const WORKBOOK_FILENAME = "content_calendar.xlsx";
 export const IMAGES_DIRNAME = "images";
+
+// Maps each Credentials field to its env key, in the same order they appear
+// in CREDENTIALS_TEMPLATE.
+const CREDENTIALS_KEY_MAP: ReadonlyArray<[keyof Credentials, string]> = [
+  ["deepseekApiKey", "DEEPSEEK_API_KEY"],
+  ["openaiApiKey", "OPENAI_API_KEY"],
+  ["geminiApiKey", "GEMINI_API_KEY"],
+  ["tavilyApiKey", "TAVILY_API_KEY"],
+  ["devtoApiKey", "DEVTO_API_KEY"],
+  ["mediumToken", "MEDIUM_INTEGRATION_TOKEN"],
+  ["instagramAccessToken", "INSTAGRAM_ACCESS_TOKEN"],
+  ["instagramUserId", "INSTAGRAM_USER_ID"],
+  ["linkedinAccessToken", "LINKEDIN_ACCESS_TOKEN"],
+  ["linkedinUserId", "LINKEDIN_USER_ID"],
+];
+
+// Writes a Credentials object back into the full commented template rather
+// than a fresh bare KEY=VALUE blob, so a user who later opens the raw file
+// (Drive web UI, a text editor in folder mode) still sees the same
+// explanatory comments the template ships with.
+export function serializeCredentials(creds: Credentials): string {
+  let text = CREDENTIALS_TEMPLATE;
+  for (const [field, envKey] of CREDENTIALS_KEY_MAP) {
+    const value = creds[field] ?? "";
+    text = text.replace(new RegExp(`^${envKey}=.*$`, "m"), `${envKey}=${value}`);
+  }
+  return text;
+}

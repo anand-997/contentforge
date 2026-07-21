@@ -13,17 +13,19 @@ import { DriveSetup } from "./DriveSetup";
 import { ContentDomainEditor } from "./ContentDomainEditor";
 import { AgentPromptsEditor } from "./AgentPromptsEditor";
 import { WeeklyPlanEditor } from "./WeeklyPlanEditor";
+import { CredentialsEditor } from "./CredentialsEditor";
 import { UploadDownloadStorage, listRecentFolders } from "@/lib/client/storage";
 import { hasFullDriveGrant, isGoogleAuthError, listRecentDrives } from "@/lib/client/driveAuth";
 import { importLocalFolder, isImportSupported } from "@/lib/client/importLocal";
 import type { ImportProgress, ImportResult } from "@/lib/client/importLocal";
-import { CREDENTIALS_FILENAME } from "@/lib/credentialsTemplate";
+import { CREDENTIALS_FILENAME, serializeCredentials } from "@/lib/credentialsTemplate";
+import { parseCredentials } from "@/lib/client/credentials";
 import {
   CONTENT_DOMAIN_FILENAME,
   PROMPTS_FILENAME,
   WEEKLY_PLAN_FILENAME,
 } from "@/lib/client/storageNames";
-import type { RecentFolder } from "@/lib/client/contract";
+import type { Credentials, RecentFolder } from "@/lib/client/contract";
 // Value imports only as `import type` below — lib/promptConfig.ts and
 // lib/weeklyConfig.ts both import `fs` at module scope for their server-side
 // read/write functions, so a runtime import here would break the client
@@ -111,12 +113,9 @@ export function SettingsMenu(): JSX.Element {
   } = useStorage();
   const [recent, setRecent] = useState<RecentFolder[]>([]);
   const [open, setOpen] = useState(false);
-  // In-app credentials.env editor — Drive folders can't be edited with a desktop
-  // text editor, so we let the user edit the file in-app.
-  const [editingKeys, setEditingKeys] = useState(false);
-  const [keysText, setKeysText] = useState("");
-  const [keysBusy, setKeysBusy] = useState(false);
-  const [keysError, setKeysError] = useState<string | null>(null);
+  // In-app credentials.env editor (a proper form — see CredentialsEditor).
+  const [editingCreds, setEditingCreds] = useState(false);
+  const [credsDraft, setCredsDraft] = useState<Credentials | null>(null);
   // Local → Drive import.
   const [confirmImport, setConfirmImport] = useState(false);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
@@ -132,7 +131,9 @@ export function SettingsMenu(): JSX.Element {
   const [domainDraft, setDomainDraft] = useState<ContentDomainConfig | null>(null);
   const [promptsDraft, setPromptsDraft] = useState<AgentPrompts | null>(null);
   const [planDraft, setPlanDraft] = useState<Record<Weekday, WeekdayPlan> | null>(null);
-  const [loadingSection, setLoadingSection] = useState<"domain" | "prompts" | "plan" | null>(null);
+  const [loadingSection, setLoadingSection] = useState<
+    "domain" | "prompts" | "plan" | "creds" | null
+  >(null);
 
   const isDrive = info?.mode === "drive";
 
@@ -192,35 +193,17 @@ export function SettingsMenu(): JSX.Element {
     }
   };
 
-  const openKeyEditor = async (): Promise<void> => {
+  async function openCredsEditor(): Promise<void> {
     if (!provider) return;
-    setKeysError(null);
-    setKeysBusy(true);
+    setLoadingSection("creds");
     try {
       const text = await provider.readText(CREDENTIALS_FILENAME);
-      setKeysText(text ?? "");
-      setEditingKeys(true);
-    } catch (err) {
-      setKeysError(err instanceof Error ? err.message : "Couldn't load credentials.");
+      setCredsDraft(parseCredentials(text ?? ""));
+      setEditingCreds(true);
     } finally {
-      setKeysBusy(false);
+      setLoadingSection(null);
     }
-  };
-
-  const saveKeys = async (): Promise<void> => {
-    if (!provider) return;
-    setKeysError(null);
-    setKeysBusy(true);
-    try {
-      await provider.writeText(CREDENTIALS_FILENAME, keysText);
-      await refresh();
-      setEditingKeys(false);
-    } catch (err) {
-      setKeysError(err instanceof Error ? err.message : "Couldn't save credentials.");
-    } finally {
-      setKeysBusy(false);
-    }
-  };
+  }
 
   useEffect(() => {
     if (info?.mode === "folder") {
@@ -506,56 +489,22 @@ export function SettingsMenu(): JSX.Element {
             </button>
           </div>
 
+          {(isDrive || info?.mode === "folder") && (
+            <div className="mt-3 border-t border-hairline pt-2">
+              <button
+                type="button"
+                role="menuitem"
+                disabled={busy || loadingSection !== null}
+                onClick={() => void openCredsEditor()}
+                className="focus-ring flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm text-teal hover:bg-teal/10 disabled:opacity-50"
+              >
+                Edit API keys
+              </button>
+            </div>
+          )}
+
           {isDrive && (
             <div className="mt-3 border-t border-hairline pt-2">
-              {!editingKeys ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  disabled={busy || keysBusy}
-                  onClick={() => void openKeyEditor()}
-                  className="focus-ring flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-teal hover:bg-teal/10 disabled:opacity-50"
-                >
-                  {keysBusy ? "Loading…" : "Edit API keys"}
-                </button>
-              ) : (
-                <div className="px-0.5">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-subtext">
-                    credentials.env
-                  </p>
-                  <textarea
-                    value={keysText}
-                    onChange={(e) => setKeysText(e.target.value)}
-                    spellCheck={false}
-                    rows={8}
-                    className="mt-1 block w-full rounded-md border border-hairline bg-ink-700/50 p-2 font-mono text-[11px] text-white focus-ring"
-                  />
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      disabled={keysBusy}
-                      onClick={() => void saveKeys()}
-                      className="focus-ring flex-1 rounded-md border border-teal/40 bg-teal/10 px-2.5 py-1.5 text-xs font-semibold text-teal hover:bg-teal/20 disabled:opacity-50"
-                    >
-                      {keysBusy ? "Saving…" : "Save keys"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={keysBusy}
-                      onClick={() => setEditingKeys(false)}
-                      className="focus-ring rounded-md border border-hairline px-2.5 py-1.5 text-xs text-subtext hover:text-white disabled:opacity-50"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-              {keysError && (
-                <p role="alert" className="mt-2 px-0.5 text-xs text-status-error">
-                  {keysError}
-                </p>
-              )}
-
               {/* Local → Drive import. Files added via the Drive web UI are
                   invisible to the app (drive.file scope), so importing through
                   the app is how content gets into Drive. */}
@@ -574,7 +523,7 @@ export function SettingsMenu(): JSX.Element {
                     <button
                       type="button"
                       role="menuitem"
-                      disabled={busy || keysBusy}
+                      disabled={busy || loadingSection !== null}
                       onClick={() => {
                         setImportResult(null);
                         setImportError(null);
@@ -695,6 +644,17 @@ export function SettingsMenu(): JSX.Element {
             await provider.writeText(WEEKLY_PLAN_FILENAME, JSON.stringify(next, null, 2));
           }}
           onClose={() => setEditingPlan(false)}
+        />
+      )}
+      {editingCreds && credsDraft && (
+        <CredentialsEditor
+          credentials={credsDraft}
+          onSave={async (next) => {
+            if (!provider) return;
+            await provider.writeText(CREDENTIALS_FILENAME, serializeCredentials(next));
+            await refresh();
+          }}
+          onClose={() => setEditingCreds(false)}
         />
       )}
     </div>

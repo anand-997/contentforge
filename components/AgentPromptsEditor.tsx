@@ -37,6 +37,8 @@ export function AgentPromptsEditor({
   onClose,
 }: AgentPromptsEditorProps): JSX.Element {
   const toast = useToast();
+  // Opens read-only — see components/ContentDomainEditor.tsx for why.
+  const [locked, setLocked] = useState(true);
   const [draft, setDraft] = useState<AgentPrompts>(prompts);
   const [saving, setSaving] = useState(false);
 
@@ -91,7 +93,10 @@ export function AgentPromptsEditor({
           </button>
         </div>
 
-        <div className="mt-4 max-h-[70vh] space-y-6 overflow-y-auto pr-1">
+        <fieldset
+          disabled={locked}
+          className="mx-0 mb-0 mt-4 max-h-[70vh] min-w-0 space-y-6 overflow-y-auto border-0 p-0 pr-1"
+        >
           {STAGES.map(({ key, label, help }) => {
             const block = draft[key];
             return (
@@ -180,26 +185,47 @@ export function AgentPromptsEditor({
               />
             </label>
           </section>
-        </div>
+        </fieldset>
 
         <div className="mt-5 flex gap-2 border-t border-hairline pt-4">
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={saving}
-            className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-glow transition-all hover:bg-teal-soft disabled:opacity-60"
-          >
-            {saving ? <Spinner className="text-ink-900" /> : null}
-            {saving ? "Saving…" : "Save"}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="focus-ring rounded-xl border border-hairline px-4 py-2.5 text-sm text-subtext hover:text-white disabled:opacity-50"
-          >
-            Cancel
-          </button>
+          {locked ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setLocked(false)}
+                className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-glow transition-all hover:bg-teal-soft"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="focus-ring rounded-xl border border-hairline px-4 py-2.5 text-sm text-subtext hover:text-white"
+              >
+                Close
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={saving}
+                className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-glow transition-all hover:bg-teal-soft disabled:opacity-60"
+              >
+                {saving ? <Spinner className="text-ink-900" /> : null}
+                {saving ? "Saving…" : "Save"}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={saving}
+                className="focus-ring rounded-xl border border-hairline px-4 py-2.5 text-sm text-subtext hover:text-white disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>,

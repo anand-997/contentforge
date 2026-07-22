@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useStorage } from "./StorageContext";
 import { DriveSetup } from "./DriveSetup";
 import { listRecentFolders } from "@/lib/client/storage";
-import { isGoogleAuthError, listRecentDrives } from "@/lib/client/driveAuth";
+import { isGoogleAuthError, listRecentDrives, preloadGis } from "@/lib/client/driveAuth";
 import type { RecentFolder } from "@/lib/client/contract";
 
 export function FolderOnboarding(): JSX.Element {
@@ -37,6 +37,11 @@ export function FolderOnboarding(): JSX.Element {
   useEffect(() => {
     if (!driveConfigured) return;
     void listRecentDrives().then(setRecentDrives).catch(() => setRecentDrives([]));
+    // Warm the Google Identity Services script now, so the "Continue with
+    // Drive" tap can call requestAccessToken() synchronously instead of
+    // waiting on a fresh script fetch — the latter breaks the user-gesture
+    // chain popups need on mobile Safari/Chrome.
+    preloadGis();
   }, [driveConfigured]);
 
   // The most recently used Drive folder powers the "Continue with Drive" option.

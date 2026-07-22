@@ -85,7 +85,7 @@ async function main(): Promise<void> {
   });
 
   await agent1TopicGenerator(ctx);
-  const failed = await agent2ContentWriter(ctx);
+  const { failed } = await agent2ContentWriter(ctx);
   const row = await mgr.getTodayRow();
 
   const after = snapshot();

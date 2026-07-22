@@ -770,9 +770,18 @@ interface PlatformResult {
   logEntry: string;
 }
 
+export interface Agent2Result {
+  /** Display names of platforms that failed this call. */
+  failed: string[];
+  /** Enabled, not-yet-written platforms this call didn't get to (capped by
+   *  `maxNewPlatforms`). 0 means every enabled platform was attempted. */
+  remaining: number;
+}
+
 export async function agent2ContentWriter(
   ctx: RunContext = createLocalContext(),
-): Promise<string[]> {
+  opts?: { maxNewPlatforms?: number },
+): Promise<Agent2Result> {
   const config = ctx.config;
   const domain = ctx.domain;
   const date = ctx.targetDate ?? todayString();
@@ -1189,6 +1198,13 @@ Rules:
   const failures: string[] = [];
   // First failure reason, reused in the post-loop summary message.
   let firstReason = "";
+  // Caps how many NEW (not-already-done) platforms this call attempts, so a
+  // stateless caller (folder mode's /api/generate) can run one platform per
+  // request instead of all five in one long serverless invocation. Local mode
+  // omits this and always runs every enabled platform in one pass.
+  const cap = opts?.maxNewPlatforms ?? Infinity;
+  let attempted = 0;
+  let remaining = 0;
 
   for (const platform of platforms) {
     // Stop checkpoint between platforms (outside the per-platform try so a stop
@@ -1206,6 +1222,13 @@ Rules:
       continue;
     }
 
+    if (attempted >= cap) {
+      // Cap reached — leave this (and any later) platform untouched for the
+      // next call to pick up; row stays at "Writing" so it resumes here.
+      remaining += 1;
+      continue;
+    }
+
     try {
       const result = await platform.run();
       agentLog = appendLog(agentLog, result.logEntry);
@@ -1216,6 +1239,7 @@ Rules:
         lastUpdated: nowIso(),
       });
       completed += 1;
+      attempted += 1;
       logger.info(result.logEntry);
       reportProgress(
         PROGRESS_START + ((PROGRESS_END - PROGRESS_START) * completed) / total,
@@ -1226,6 +1250,7 @@ Rules:
         // Leave status at "Writing" so a re-run resumes at this platform.
         throw err;
       }
+      attempted += 1;
       const reason = errToString(err);
       const message = `Agent 2 failed at ${platform.name}: ${reason}`;
       // Resilient: log, record the failure, and continue with the rest.
@@ -1237,6 +1262,13 @@ Rules:
       failures.push(platform.name);
       continue;
     }
+  }
+
+  if (remaining > 0) {
+    // Capped this call on purpose (not a failure) — row is already at
+    // "Writing" with this call's progress persisted; the caller re-invokes
+    // for the rest instead of treating this as done or errored.
+    return { failed: failures, remaining };
   }
 
   if (failures.length === 0) {
@@ -1258,7 +1290,7 @@ Rules:
     });
   }
 
-  return failures;
+  return { failed: failures, remaining: 0 };
 }
 
 // ---------------------------------------------------------------------------

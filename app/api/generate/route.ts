@@ -24,9 +24,10 @@ import type {
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-// Generation runs several LLM calls; needs a generous function timeout. Hosts
-// with short serverless limits should raise this or drive the steps per-call.
-export const maxDuration = 300;
+// Each call now runs exactly ONE pipeline quantum (topic, OR one platform, OR
+// images — see resolveStartStep()/maxNewPlatforms below), so this only needs
+// to cover a single LLM call chain rather than the whole 7-call pipeline.
+export const maxDuration = 60;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;
@@ -109,9 +110,14 @@ function parseHistory(v: unknown): GenerationLogEntry[] | undefined {
 
 // POST /api/generate
 // Body: { creds: {deepseekApiKey, openaiApiKey?, geminiApiKey?}, workbookBase64 }
-// Runs the resumable pipeline fully in memory (no server filesystem state) and
-// returns the updated workbook + generated images for the browser to write back
-// to the user's folder. Keys are used transiently and never persisted/logged.
+// Runs exactly ONE quantum of the resumable pipeline per call — Agent 1 (topic),
+// OR a single Agent 2 platform, OR Agent 3 (images) — driven by the row's
+// current `status` (resolveStartStep()), fully in memory (no server filesystem
+// state). Returns the updated workbook + any images generated this call, plus
+// the row's new status, so the browser can loop calls until status is "Done".
+// This keeps every request short regardless of host function-duration limits,
+// and lets the UI show real per-platform progress instead of one long spinner.
+// Keys are used transiently and never persisted/logged.
 export async function POST(req: Request): Promise<NextResponse> {
   let body: unknown;
   try {
@@ -196,17 +202,27 @@ export async function POST(req: Request): Promise<NextResponse> {
     if (existing?.status === "Done") {
       note = "Already completed for today.";
     } else {
+      // Exactly one quantum of work per call — never the whole pipeline.
       const start = resolveStartStep(existing?.status);
       if (start <= 1) {
         await agent1TopicGenerator(ctx);
-      }
-      if (start <= 2) {
-        const failed = await agent2ContentWriter(ctx);
+        // agent1 leaves the row at "Pending" — its original design assumed
+        // Agent 2 would run in the same request right after. Since each call
+        // here is now a single quantum, advance the row to "Writing" so the
+        // next call's resolveStartStep() moves on to platform writing instead
+        // of regenerating the topic forever.
+        const created = targetDate
+          ? await mgr.getRowForDate(targetDate)
+          : await mgr.getTodayRow();
+        if (created && created.status === "Pending") {
+          await mgr.updateRow(created.date, { status: "Writing" });
+        }
+      } else if (start <= 2) {
+        const { failed } = await agent2ContentWriter(ctx, { maxNewPlatforms: 1 });
         if (failed.length > 0) {
           note = `${failed.length} platform(s) failed: ${failed.join(", ")}. Generate again to retry.`;
         }
-      }
-      if (note === "" && start <= 3) {
+      } else if (start <= 3) {
         const warning = await agent3ImageGenerator(ctx);
         if (warning) note = warning;
       }

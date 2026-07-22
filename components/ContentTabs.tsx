@@ -63,6 +63,8 @@ export interface ContentTabsProps {
   onRun: () => void;
   pipelineRunning: boolean;
   progress: number;
+  /** What's happening right now, shown in the Today tab while generating. */
+  progressLabel?: string | null;
   /** Persist a calendar row's edits (publish status, content, notes). */
   onSaveRow?: (date: string, updates: Partial<ContentRow>) => Promise<void>;
   /** Map a stored image ref to a displayable URL (folder mode → blob URL). */
@@ -86,6 +88,7 @@ export function ContentTabs({
   onRun,
   pipelineRunning,
   progress,
+  progressLabel,
   onSaveRow,
   resolveImage,
   onRegenerate,
@@ -148,6 +151,7 @@ export function ContentTabs({
             onRun={onRun}
             pipelineRunning={pipelineRunning}
             progress={progress}
+            progressLabel={progressLabel}
             onRegenerate={onRegenerate}
             loading={loading.today}
           />

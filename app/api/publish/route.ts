@@ -146,7 +146,7 @@ export async function POST(req: Request): Promise<NextResponse> {
         const message = e instanceof Error ? e.message : String(e);
         note = "Draft created without a cover image (" + message + ").";
       }
-    } else if (serverResolved) {
+    } else {
       note = "No cover image found.";
     }
 

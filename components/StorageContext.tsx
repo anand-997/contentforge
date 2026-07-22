@@ -87,6 +87,13 @@ export interface StorageContextValue {
   note: string | null;
   /** True while POST /api/generate is running. */
   generating: boolean;
+  /** Human-readable "what's happening right now" while generating (e.g. "Agent
+   *  2 → LinkedIn written (187 words)"), or null when not generating. Each
+   *  /api/generate call now does one pipeline step, so this updates between
+   *  calls instead of sitting on one fixed message for the whole run. */
+  generateProgressLabel: string | null;
+  /** Rough 0-100 progress through the current generate run, for a progress bar. */
+  generateProgressPct: number;
   folderApiSupported: boolean;
   /** True once a Google OAuth Client ID is available (user-saved or deployment default). */
   driveConfigured: boolean;
@@ -193,6 +200,18 @@ function messageFrom(err: unknown): string {
   return "Something went wrong. Please try again.";
 }
 
+const PLATFORM_IDS = ["linkedin", "medium", "instagram", "youtube", "devto"] as const;
+
+/** How many platforms this domain has enabled — used only to shape the
+ *  generate-progress bar, so a safe default (all 5) is fine if unreadable. */
+function countEnabledPlatforms(domain: unknown): number {
+  if (typeof domain !== "object" || domain === null) return PLATFORM_IDS.length;
+  const enabled = (domain as { enabledPlatforms?: unknown }).enabledPlatforms;
+  if (typeof enabled !== "object" || enabled === null) return PLATFORM_IDS.length;
+  const record = enabled as Record<string, unknown>;
+  return PLATFORM_IDS.filter((id) => record[id] !== false).length;
+}
+
 export function StorageProviderRoot({
   children,
 }: {
@@ -205,6 +224,8 @@ export function StorageProviderRoot({
   const [info, setInfo] = useState<StorageInfo | null>(null);
   const [busy, setBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [generateProgressLabel, setGenerateProgressLabel] = useState<string | null>(null);
+  const [generateProgressPct, setGenerateProgressPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [driveNeedsConsent, setDriveNeedsConsent] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -609,48 +630,86 @@ export function StorageProviderRoot({
         readJson(PROMPTS_FILENAME),
       ]);
 
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          creds,
-          workbookBase64,
-          theme,
-          voice,
-          material,
-          history,
-          domain,
-          config,
-          agentPrompts,
-          // Always send the BROWSER's local date so the server agrees on "today".
-          // On Vercel the server clock is UTC; without this the row is created
-          // under the UTC date and the local-date UI shows "No content for today".
-          date: runDate,
-        }),
-      });
-      if (!res.ok) {
-        let detail = `HTTP ${res.status}`;
-        try {
-          const body = (await res.json()) as { error?: string; note?: string };
-          detail = body.error ?? body.note ?? detail;
-        } catch {
-          /* non-JSON error body — keep the status code */
-        }
-        throw new Error(detail);
-      }
-      const data = (await res.json()) as GenerateResponse;
+      // /api/generate now runs exactly ONE pipeline step per call (topic, OR
+      // one platform, OR images) so no single request risks a serverless
+      // timeout or leaves the UI frozen on one spinner for minutes — see
+      // app/api/generate/route.ts. Loop calls here, feeding each response's
+      // workbook back in, until the row reports "Done" (or an error/platform
+      // failure that needs a manual retry).
+      const totalPlatforms = countEnabledPlatforms(domain);
+      const totalStepsEstimate = totalPlatforms + 2; // topic + platforms + images
+      // Generous headroom: a platform can fail and be retried a couple of
+      // times before this gives up and surfaces an error instead of looping
+      // forever against a broken API key.
+      const maxGenerateCalls = totalPlatforms * 3 + 4;
 
-      // Decoded once and reused below (for the write, the log-entry parse,
-      // and hydrate) instead of re-decoding base64 three times.
-      const nextWorkbook = data.workbookBase64
-        ? base64ToArrayBuffer(data.workbookBase64)
-        : null;
-      if (nextWorkbook) {
-        await p.writeWorkbook(nextWorkbook);
+      let currentWorkbookBase64 = workbookBase64;
+      let nextWorkbook: ArrayBuffer | null = null;
+      let data: GenerateResponse | null = null;
+      setGenerateProgressLabel("Starting…");
+      setGenerateProgressPct(5);
+
+      for (let stepIndex = 0; stepIndex < maxGenerateCalls; stepIndex += 1) {
+        const res = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            creds,
+            workbookBase64: currentWorkbookBase64,
+            theme,
+            voice,
+            material,
+            history,
+            domain,
+            config,
+            agentPrompts,
+            // Always send the BROWSER's local date so the server agrees on "today".
+            // On Vercel the server clock is UTC; without this the row is created
+            // under the UTC date and the local-date UI shows "No content for today".
+            date: runDate,
+          }),
+        });
+        if (!res.ok) {
+          let detail = `HTTP ${res.status}`;
+          try {
+            const body = (await res.json()) as { error?: string; note?: string };
+            detail = body.error ?? body.note ?? detail;
+          } catch {
+            /* non-JSON error body — keep the status code */
+          }
+          throw new Error(detail);
+        }
+        data = (await res.json()) as GenerateResponse;
+        if (data.workbookBase64) {
+          currentWorkbookBase64 = data.workbookBase64;
+          nextWorkbook = base64ToArrayBuffer(data.workbookBase64);
+          // Persist after every step (not just at the end) so progress already
+          // made survives a closed tab or a later failed step.
+          await p.writeWorkbook(nextWorkbook);
+        }
+        for (const image of data.images) {
+          await p.writeImage(image.name, image.base64);
+        }
+
+        const lastLogLine = (data.agentLog ?? "")
+          .trim()
+          .split("\n")
+          .filter((line) => line.trim().length > 0)
+          .pop();
+        setGenerateProgressLabel(lastLogLine || data.note || "Generating…");
+        setGenerateProgressPct(
+          Math.min(95, Math.round(((stepIndex + 1) / totalStepsEstimate) * 100)),
+        );
+
+        if (data.status === "Done" || data.status === "Error") break;
+        // A platform failed this step — don't keep auto-retrying indefinitely;
+        // surface it and let the user tap Generate again.
+        if (data.note && /platform\(s\) failed/.test(data.note)) break;
       }
-      for (const image of data.images) {
-        await p.writeImage(image.name, image.base64);
+      if (!data) {
+        throw new Error("Generation didn't return a result.");
       }
+      if (data.status === "Done") setGenerateProgressPct(100);
 
       // Append today's row to generation-log.json so future runs don't repeat it.
       if (nextWorkbook) {
@@ -695,6 +754,8 @@ export function StorageProviderRoot({
       setError(messageFrom(err));
     } finally {
       setGenerating(false);
+      setGenerateProgressLabel(null);
+      setGenerateProgressPct(0);
     }
   }, [hydrate, runLoading]);
 
@@ -912,6 +973,8 @@ export function StorageProviderRoot({
       driveNeedsConsent,
       note,
       generating,
+      generateProgressLabel,
+      generateProgressPct,
       folderApiSupported,
       driveConfigured,
       drivePickerConfigured,
@@ -943,6 +1006,8 @@ export function StorageProviderRoot({
       driveNeedsConsent,
       note,
       generating,
+      generateProgressLabel,
+      generateProgressPct,
       folderApiSupported,
       driveConfigured,
       drivePickerConfigured,

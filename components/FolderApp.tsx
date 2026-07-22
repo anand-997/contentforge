@@ -115,6 +115,8 @@ function FolderApp(): JSX.Element {
     credentials,
     info,
     generating,
+    generateProgressLabel,
+    generateProgressPct,
     error,
     note,
     knowledgeCount,
@@ -269,9 +271,10 @@ function FolderApp(): JSX.Element {
             type="button"
             onClick={() => void generateToday()}
             disabled={generating || keysMissing}
+            title={generating ? generateProgressLabel ?? undefined : undefined}
             className="focus-ring rounded-lg border border-teal/50 bg-teal/15 px-3.5 py-1.5 text-sm font-semibold text-teal transition-colors hover:bg-teal/25 disabled:opacity-50"
           >
-            {generating ? "Generating…" : "Generate today"}
+            {generating ? `Generating… ${Math.round(generateProgressPct)}%` : "Generate today"}
           </button>
         </div>
       </header>
@@ -376,7 +379,8 @@ function FolderApp(): JSX.Element {
           loading={{ today: parsing, calendar: parsing, checklist: parsing }}
           onRun={() => void generateToday()}
           pipelineRunning={generating}
-          progress={generating ? 50 : 0}
+          progress={generateProgressPct}
+          progressLabel={generateProgressLabel}
           onSaveRow={saveRow}
           resolveImage={resolveImage}
           onRegenerate={regenerate}

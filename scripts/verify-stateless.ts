@@ -73,7 +73,7 @@ async function main(): Promise<void> {
 
   console.log("\nRunning stateless pipeline (in-memory)...");
   await agent1TopicGenerator(ctx);
-  const failed = await agent2ContentWriter(ctx);
+  const { failed } = await agent2ContentWriter(ctx);
   if (failed.length === 0) await agent3ImageGenerator(ctx);
 
   const updated = await mgr.toBuffer();

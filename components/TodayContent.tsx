@@ -18,6 +18,9 @@ export interface TodayContentProps {
   onRun: () => void;
   pipelineRunning: boolean;
   progress: number;
+  /** What's happening right now (e.g. "Agent 2 → LinkedIn written (187 words)"),
+   *  shown in place of the generic "Generating…" subtext when available. */
+  progressLabel?: string | null;
   /** Delete today's row + images and regenerate fresh content. */
   onRegenerate?: (date: string) => void | Promise<void>;
   /**
@@ -43,6 +46,7 @@ export function TodayContent({
   onRun,
   pipelineRunning,
   progress,
+  progressLabel,
   onRegenerate,
   loading = false,
 }: TodayContentProps): JSX.Element {
@@ -96,8 +100,8 @@ export function TodayContent({
         </button>
         {pipelineRunning && (
           <p className="max-w-xs text-xs text-subtext">
-            Generating across all five platforms — content will appear here as
-            each one finishes.
+            {progressLabel ||
+              "Generating across all five platforms — content will appear here as each one finishes."}
           </p>
         )}
       </div>

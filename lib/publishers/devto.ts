@@ -64,6 +64,24 @@ export function setFrontmatterField(
   return out.join("\n");
 }
 
+/**
+ * Remove a `key: value` line from a YAML frontmatter block entirely (as
+ * opposed to setFrontmatterField, which sets/replaces it). Used to drop the
+ * generator's placeholder `cover_image: /api/images/...` — a relative path
+ * that's only ever resolvable on this app's own server — when no real,
+ * publicly-fetchable image URL is available. Dev.to's API rejects a relative
+ * cover_image outright ("Main image is not a valid URL"), so leaving the
+ * placeholder in place is worse than omitting the field.
+ */
+export function removeFrontmatterField(frontmatter: string, key: string): string {
+  const lines = frontmatter.split("\n");
+  const keyPattern = new RegExp(`^\\s*${key}\\s*:`);
+  const out = lines.filter(
+    (line, i) => !(i > 0 && line.trim() !== "---" && keyPattern.test(line)),
+  );
+  return out.join("\n");
+}
+
 interface DevtoArticleBody {
   article: {
     body_markdown: string;
@@ -92,9 +110,12 @@ export async function publishDevtoDraft(opts: {
   const split = splitFrontmatter(markdown);
   if (split) {
     let frontmatter = setFrontmatterField(split.frontmatter, "published", "false");
-    if (coverImageUrl) {
-      frontmatter = setFrontmatterField(frontmatter, "cover_image", coverImageUrl);
-    }
+    // Always resolve cover_image one way or the other: a real hosted URL, or
+    // remove the field. Never leave the generator's relative placeholder path
+    // in place — Dev.to rejects anything that isn't an absolute URL.
+    frontmatter = coverImageUrl
+      ? setFrontmatterField(frontmatter, "cover_image", coverImageUrl)
+      : removeFrontmatterField(frontmatter, "cover_image");
     payload = { article: { body_markdown: `${frontmatter}${split.body}` } };
   } else {
     payload = {

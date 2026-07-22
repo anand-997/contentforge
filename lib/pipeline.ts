@@ -152,7 +152,7 @@ export async function runPipeline(opts?: { targetDate?: string }): Promise<void>
       emitStatus("running", "Agent 2: Writing platform content...", 22);
       // Agent 2 reports its own sub-progress (22 -> 78) as each platform lands.
       // It returns the list of FAILED platform names (empty = all succeeded).
-      const failed = await agent2ContentWriter(ctx);
+      const { failed } = await agent2ContentWriter(ctx);
       if (failed.length > 0) {
         const msg = `${failed.length} platform(s) failed: ${failed.join(", ")}. Run again to retry.`;
         logger.error(`Pipeline halted after Agent 2: ${msg}`);

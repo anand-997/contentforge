@@ -111,6 +111,25 @@ async function ensurePicker(): Promise<void> {
   });
 }
 
+/**
+ * Start fetching the Google Identity Services script ahead of any click, so a
+ * later `requestAccessToken()` call finds it already loaded and can run
+ * synchronously inside the triggering tap's call stack. Without this, the
+ * first tap in a session awaits a real network fetch before the popup call —
+ * on iOS Safari/Chrome that gap is enough for the browser to no longer treat
+ * the popup as a direct result of the user's gesture, and it gets blocked
+ * (`popup_failed_to_open`). Desktop is more lenient about the gap, which is
+ * why this only shows up on mobile. Safe to call multiple times/eagerly:
+ * `loadScript()` memoizes by src. Fire-and-forget — a failed preload isn't
+ * fatal, `ensureTokenClient()` still retries the load on the actual click.
+ */
+export function preloadGis(): void {
+  if (typeof window === "undefined") return;
+  void loadScript(GIS_SRC).catch(() => {
+    /* ignore — ensureTokenClient() will retry when the user actually clicks */
+  });
+}
+
 // ---- token client ---------------------------------------------------------
 
 let tokenClient: GoogleTokenClient | null = null;

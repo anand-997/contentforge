@@ -263,42 +263,31 @@ async function getTokenSilent(forceRefresh = false): Promise<string> {
 }
 
 /**
- * Get a token good enough to actually use: try silently first, then at most
- * ONE interactive consent popup. Callers MUST invoke this directly from a user
+ * Get a token good enough to actually use: at most ONE `requestAccessToken()`
+ * call per invocation, so callers MUST invoke this directly from a user
  * tap/click handler and must NOT retry it themselves after it throws — see
  * DriveScopeError below.
  *
- * Two things this guards against:
+ * This used to try a "silent" `requestToken("")` first and only fall back to
+ * `requestToken("consent")` if that failed or returned too narrow a grant —
+ * on the theory that the silent attempt never opens a visible popup, so
+ * chaining a second, real popup call after it was safe. That assumption
+ * doesn't hold everywhere: on some mobile browsers (seen in the wild on
+ * Android Chrome, not just Safari/iOS) the "silent" call still opens (and can
+ * itself fail to open) a real popup window, and either way a SECOND
+ * `requestAccessToken()` call in the same gesture lands further from the
+ * original tap and can get blocked even where the first one wouldn't have.
+ * Making exactly one call — always interactive — trades away the occasional
+ * silent/flash-free reconnect for popups that actually open reliably.
  *
- * 1. A silent request can succeed while returning an OLD, NARROWER grant
- *    (Google reuses whatever the user previously approved) — without checking
- *    `scopeSatisfied()` we'd carry on with e.g. a drive.file-only token, see
- *    none of the user's synced files, and show an empty dashboard with no
- *    explanation.
- * 2. Chaining a SECOND popup request (silent → default-prompt → consent, as
- *    this used to do) after the first one has already resolved/rejected is
- *    unreliable on Safari/iOS: each additional `requestAccessToken()` call
- *    happens further from the original tap, and Safari's user-activation
- *    window is much stricter than Chrome's. A popup opened outside that
- *    window can be silently blocked or rejected by Google with a generic
- *    "Authorization Error" page. The silent attempt below never opens a
- *    popup, so it's safe to try regardless; everything past it is capped at
- *    one single popup call.
+ * If the resulting grant is too narrow, DON'T call requestToken again here —
+ * surface DriveScopeError so the UI can offer a "Grant Drive access" button,
+ * which is a fresh tap and therefore reliably allowed to open its own popup.
  */
 async function acquireInteractive(): Promise<string> {
   if (accessToken !== null && Date.now() < expiresAt - 60_000 && scopeSatisfied()) {
     return accessToken;
   }
-  try {
-    const token = await requestToken("");
-    if (scopeSatisfied()) return token;
-  } catch {
-    /* no valid silent session — fall through to the one interactive attempt */
-  }
-  // The only popup this function will ever open. If it still doesn't cover the
-  // scope, DON'T call requestToken again here — surface DriveScopeError so the
-  // UI can offer a "Grant Drive access" button, which is a fresh tap and
-  // therefore reliably allowed to open its own popup.
   const token = await requestToken("consent");
   if (!scopeSatisfied()) {
     throw new DriveScopeError(LIMITED_GRANT_MESSAGE);

@@ -51,6 +51,7 @@ import type {
   WeekdayPlan,
 } from "@/lib/types";
 import { parseWorkbook, todayString, imageBasename } from "@/lib/client/parseWorkbook";
+import { fetchWithRetry, isTransientNetworkError } from "@/lib/client/networkError";
 import { applyRowUpdates, deleteRowFromWorkbook } from "@/lib/client/writeWorkbook";
 import { firstLine, lastLine } from "@/lib/similarity";
 import { parseImagePaths } from "@/lib/imagePaths";
@@ -650,7 +651,7 @@ export function StorageProviderRoot({
       setGenerateProgressPct(5);
 
       for (let stepIndex = 0; stepIndex < maxGenerateCalls; stepIndex += 1) {
-        const res = await fetch("/api/generate", {
+        const res = await fetchWithRetry("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -751,7 +752,15 @@ export function StorageProviderRoot({
       await hydrate(p, nextWorkbook ?? undefined);
       });
     } catch (err) {
-      setError(messageFrom(err));
+      // A dropped connection (e.g. the screen locking mid-generation) looks
+      // like a scary, opaque "Load failed"/"Failed to fetch" — but every step
+      // already written is saved (writeWorkbook runs after each one above),
+      // so this is always safe to just resume from where it left off.
+      setError(
+        isTransientNetworkError(err)
+          ? "Connection interrupted (often happens when your screen locks mid-generation). Your progress up to the last completed step was saved — tap Generate again to continue."
+          : messageFrom(err),
+      );
     } finally {
       setGenerating(false);
       setGenerateProgressLabel(null);

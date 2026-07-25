@@ -42,6 +42,8 @@ export interface TopicDetailModalProps {
   resolveImage?: (ref: string) => Promise<string | null>;
   /** Delete this day's row + images and regenerate fresh content. */
   onRegenerate?: (date: string) => void | Promise<void>;
+  /** Delete this day's row + images only — no regeneration. */
+  onDelete?: (date: string) => void | Promise<void>;
   /** Publish a platform's content to that platform. Omit to hide the button. */
   onPublishDraft?: (
     date: string,
@@ -179,6 +181,7 @@ export function TopicDetailModal({
   onSave,
   resolveImage,
   onRegenerate,
+  onDelete,
   onPublishDraft,
 }: TopicDetailModalProps): JSX.Element {
   const editable = typeof onSave === "function";
@@ -439,7 +442,7 @@ export function TopicDetailModal({
         </div>
 
         {/* Footer */}
-        {(editable || onRegenerate) && (
+        {(editable || onRegenerate || onDelete) && (
           <footer className="flex items-center gap-3 border-t border-hairline px-5 py-3">
             {onRegenerate && (
               <button
@@ -458,6 +461,25 @@ export function TopicDetailModal({
                 className="focus-ring rounded-lg border border-hairline bg-ink-600/60 px-3 py-1.5 text-xs font-medium text-white/80 transition-colors hover:border-status-error/50 hover:text-status-error"
               >
                 ↻ Delete &amp; regenerate
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Delete the content and images for ${row.date}? This cannot be undone.`,
+                    )
+                  ) {
+                    void onDelete(row.date);
+                    onClose();
+                  }
+                }}
+                title="Delete this day's content and images"
+                className="focus-ring rounded-lg border border-hairline bg-ink-600/60 px-3 py-1.5 text-xs font-medium text-white/80 transition-colors hover:border-status-error/50 hover:text-status-error"
+              >
+                🗑 Delete
               </button>
             )}
             <div className="min-w-0 flex-1 text-xs">

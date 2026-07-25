@@ -16,6 +16,8 @@ export interface CalendarTableProps {
   resolveImage?: (ref: string) => Promise<string | null>;
   /** Delete a day's row + images and regenerate fresh content. */
   onRegenerate?: (date: string) => void | Promise<void>;
+  /** Delete a day's row + images only — no regeneration. */
+  onDelete?: (date: string) => void | Promise<void>;
   /** Publish a platform's content to that platform (Dev.to draft / Instagram live). */
   onPublishDraft?: (
     date: string,
@@ -31,6 +33,7 @@ export function CalendarTable({
   onSaveRow,
   resolveImage,
   onRegenerate,
+  onDelete,
   onPublishDraft,
 }: CalendarTableProps): JSX.Element {
   useNow(60000);
@@ -122,6 +125,7 @@ export function CalendarTable({
           onSave={onSaveRow}
           resolveImage={resolveImage}
           onRegenerate={onRegenerate}
+          onDelete={onDelete}
           onPublishDraft={onPublishDraft}
         />
       )}

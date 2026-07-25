@@ -24,10 +24,16 @@ import type {
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-// Each call now runs exactly ONE pipeline quantum (topic, OR one platform, OR
-// images — see resolveStartStep()/maxNewPlatforms below), so this only needs
-// to cover a single LLM call chain rather than the whole 7-call pipeline.
-export const maxDuration = 60;
+// Each call runs exactly ONE pipeline quantum (topic, OR one platform, OR
+// images — see resolveStartStep()/maxNewPlatforms below). Even a single
+// quantum can occasionally take a while though: max_tokens is 4000 and the
+// Deepseek call is non-streaming (awaits the full completion before
+// returning), so a slow/loaded upstream response can run past a minute on
+// its own — that previously showed up as a bare HTTP 504 from Vercel's own
+// gateway (the function got killed mid-call, before it could return its own
+// error JSON). Needs Fluid Compute enabled on the Vercel project to take
+// effect above 60s on the Hobby plan.
+export const maxDuration = 300;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;

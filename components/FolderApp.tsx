@@ -128,6 +128,7 @@ function FolderApp(): JSX.Element {
     refresh,
     saveRow,
     regenerate,
+    deleteEntry,
     publishDraft,
   } = useStorage();
   const [rows, setRows] = useState<ContentRow[]>([]);
@@ -409,6 +410,7 @@ function FolderApp(): JSX.Element {
           onSaveRow={saveRow}
           resolveImage={resolveImage}
           onRegenerate={regenerate}
+          onDelete={deleteEntry}
           onPublishDraft={publishDraft}
         />
         <p className="pt-2 text-center text-xs text-subtext">

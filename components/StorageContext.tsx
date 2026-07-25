@@ -128,6 +128,8 @@ export interface StorageContextValue {
   saveRow: (date: string, updates: Partial<ContentRow>) => Promise<void>;
   /** Delete a day's row + images, then regenerate fresh content for that date. */
   regenerate: (date: string) => Promise<void>;
+  /** Delete a day's row + images only — no regeneration. */
+  deleteEntry: (date: string) => Promise<void>;
   /** Push a platform's content to that platform. Returns the resulting URL + state. */
   publishDraft: (
     date: string,
@@ -768,6 +770,32 @@ export function StorageProviderRoot({
     }
   }, [hydrate, runLoading]);
 
+  // Shared by regenerate/deleteEntry: remove a day's row + its images from
+  // the folder. Leaves re-hydrating state to the caller (regenerate's own
+  // generateToday call re-reads at the end; deleteEntry re-hydrates itself).
+  const deleteRowAndImages = useCallback(
+    async (p: StorageProvider, date: string): Promise<void> => {
+      const bytes = await p.readWorkbook();
+      if (!bytes) return;
+      const rows = await parseWorkbook(bytes);
+      const row = rows.find((r) => r.date === date);
+      if (!row) return;
+      const refs = [
+        row.imageMedium,
+        row.imageLinkedin,
+        ...parseImagePaths(row.imageInstagram),
+      ]
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      const next = await deleteRowFromWorkbook(bytes, date);
+      await p.writeWorkbook(next);
+      for (const ref of refs) {
+        await p.deleteImage(imageBasename(ref));
+      }
+    },
+    [],
+  );
+
   // Delete a day's row + its images from the folder, then regenerate fresh
   // content for that date (today or any past day). The generation-log entry for
   // the date is replaced inside generateToday so history isn't double-counted.
@@ -783,25 +811,7 @@ export function StorageProviderRoot({
       setNote(null);
       try {
         await runLoading(async () => {
-          const bytes = await p.readWorkbook();
-          if (bytes) {
-            const rows = await parseWorkbook(bytes);
-            const row = rows.find((r) => r.date === date);
-            if (row) {
-              const refs = [
-                row.imageMedium,
-                row.imageLinkedin,
-                ...parseImagePaths(row.imageInstagram),
-              ]
-                .map((s) => s.trim())
-                .filter((s) => s.length > 0);
-              const next = await deleteRowFromWorkbook(bytes, date);
-              await p.writeWorkbook(next);
-              for (const ref of refs) {
-                await p.deleteImage(imageBasename(ref));
-              }
-            }
-          }
+          await deleteRowAndImages(p, date);
         });
       } catch (err) {
         setError(messageFrom(err));
@@ -812,7 +822,32 @@ export function StorageProviderRoot({
       // its own runLoading wrap — nesting is safe, see LoadingProvider).
       await generateToday(date);
     },
-    [generateToday, runLoading],
+    [deleteRowAndImages, generateToday, runLoading],
+  );
+
+  // Delete a day's row + its images only — no regeneration. Distinct from
+  // regenerate() above so the UI can offer a plain "Delete" action for
+  // clearing out a bad/unwanted day without immediately re-running the
+  // pipeline for it.
+  const deleteEntry = useCallback(
+    async (date: string): Promise<void> => {
+      const p = providerRef.current;
+      if (!p) {
+        setError("Choose a folder first, then delete.");
+        return;
+      }
+      setError(null);
+      setNote(null);
+      try {
+        await runLoading(async () => {
+          await deleteRowAndImages(p, date);
+          await hydrate(p);
+        });
+      } catch (err) {
+        setError(messageFrom(err));
+      }
+    },
+    [deleteRowAndImages, hydrate, runLoading],
   );
 
   // Persist a single calendar row's edits back into the workbook in the folder.
@@ -1003,6 +1038,7 @@ export function StorageProviderRoot({
       generateToday,
       saveRow,
       regenerate,
+      deleteEntry,
       publishDraft,
     }),
     [
@@ -1036,6 +1072,7 @@ export function StorageProviderRoot({
       generateToday,
       saveRow,
       regenerate,
+      deleteEntry,
       publishDraft,
     ],
   );

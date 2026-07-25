@@ -23,6 +23,8 @@ export interface TodayContentProps {
   progressLabel?: string | null;
   /** Delete today's row + images and regenerate fresh content. */
   onRegenerate?: (date: string) => void | Promise<void>;
+  /** Delete today's row + images only — no regeneration. */
+  onDelete?: (date: string) => void | Promise<void>;
   /**
    * True while today's row is still being fetched/parsed. Without this,
    * "still loading" and "genuinely no content yet" render identically (both
@@ -48,6 +50,7 @@ export function TodayContent({
   progress,
   progressLabel,
   onRegenerate,
+  onDelete,
   loading = false,
 }: TodayContentProps): JSX.Element {
   if (loading) {
@@ -142,6 +145,26 @@ export function TodayContent({
             >
               <span aria-hidden="true">↻</span>
               {pipelineRunning ? "Working…" : "Delete & regenerate"}
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Delete today's content and images? This cannot be undone.",
+                  )
+                ) {
+                  void onDelete(today.date);
+                }
+              }}
+              disabled={pipelineRunning}
+              title="Delete today's content and images"
+              className="focus-ring flex min-h-[36px] items-center gap-1.5 rounded-lg border border-hairline bg-ink-600/60 px-3 py-1.5 text-xs font-medium text-white/80 transition-colors hover:border-status-error/50 hover:text-status-error disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span aria-hidden="true">🗑</span>
+              Delete
             </button>
           )}
         </div>

@@ -71,6 +71,8 @@ export interface ContentTabsProps {
   resolveImage?: (ref: string) => Promise<string | null>;
   /** Delete a day's row + images and regenerate fresh content. */
   onRegenerate?: (date: string) => void | Promise<void>;
+  /** Delete a day's row + images only — no regeneration. */
+  onDelete?: (date: string) => void | Promise<void>;
   /** Publish a platform's content to that platform (Dev.to draft / Instagram live). */
   onPublishDraft?: (
     date: string,
@@ -92,6 +94,7 @@ export function ContentTabs({
   onSaveRow,
   resolveImage,
   onRegenerate,
+  onDelete,
   onPublishDraft,
 }: ContentTabsProps): JSX.Element {
   const [active, setActive] = useState<TabId>("today");
@@ -153,6 +156,7 @@ export function ContentTabs({
             progress={progress}
             progressLabel={progressLabel}
             onRegenerate={onRegenerate}
+            onDelete={onDelete}
             loading={loading.today}
           />
         )}
@@ -170,6 +174,7 @@ export function ContentTabs({
             onSaveRow={onSaveRow}
             resolveImage={resolveImage}
             onRegenerate={onRegenerate}
+            onDelete={onDelete}
             onPublishDraft={onPublishDraft}
           />
         )}

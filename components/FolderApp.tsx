@@ -12,10 +12,14 @@ import { ContentTabs } from "./ContentTabs";
 import { SettingsMenu } from "./SettingsMenu";
 import { FolderOnboarding } from "./FolderOnboarding";
 import { ContentDomainEditor } from "./ContentDomainEditor";
+import { CredentialsEditor } from "./CredentialsEditor";
 import { useStorage, StorageProviderRoot } from "./StorageContext";
 import { parseWorkbook, todayString, imageBasename } from "@/lib/client/parseWorkbook";
 import { parseImagePaths } from "@/lib/imagePaths";
 import { CONTENT_DOMAIN_FILENAME } from "@/lib/client/storageNames";
+import { CREDENTIALS_FILENAME, serializeCredentials } from "@/lib/credentialsTemplate";
+import { parseCredentials } from "@/lib/client/credentials";
+import type { Credentials } from "@/lib/client/contract";
 
 // A domain is "blank" (never set up) when it has no brand name, niche label,
 // or pillars. Duplicated from lib/domainConfig.ts's isBlankDomain (rather than
@@ -218,6 +222,18 @@ function FolderApp(): JSX.Element {
   const keysMissing = !credentials || credentials.deepseekApiKey.trim() === "";
   const hasKnowledge = (knowledgeCount ?? 0) > 0;
 
+  // API keys editor — opened from the setup checklist below, mirroring the
+  // "Set up brand & content" button rather than telling the user to go edit
+  // credentials.env by hand.
+  const [credsEditorOpen, setCredsEditorOpen] = useState(false);
+  const [credsDraft, setCredsDraft] = useState<Credentials | null>(null);
+  const openCredsEditor = useCallback(async (): Promise<void> => {
+    if (!provider) return;
+    const text = await provider.readText(CREDENTIALS_FILENAME);
+    setCredsDraft(parseCredentials(text ?? ""));
+    setCredsEditorOpen(true);
+  }, [provider]);
+
   // Brand & content setup — read once per folder connection so a brand-new
   // visitor is prompted to define their own niche instead of generating with
   // a blank/placeholder brand.
@@ -301,7 +317,7 @@ function FolderApp(): JSX.Element {
                   {keysMissing ? "✗" : "✓"}
                 </span>
                 <span className="text-white">
-                  ① Add your API keys to <span className="font-mono text-amber">credentials.env</span>
+                  ① Add your API keys — Settings → Edit API keys
                 </span>
               </li>
               <li className="flex items-start gap-2">
@@ -340,7 +356,16 @@ function FolderApp(): JSX.Element {
               </li>
             </ul>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              {keysMissing && (
+                <button
+                  type="button"
+                  onClick={() => void openCredsEditor()}
+                  className="focus-ring shrink-0 self-start rounded-lg border border-amber/50 bg-amber/15 px-3 py-1.5 text-sm font-semibold text-amber-soft hover:bg-amber/25"
+                >
+                  Add API keys
+                </button>
+              )}
               {domainNotSetUp && (
                 <button
                   type="button"
@@ -410,6 +435,18 @@ function FolderApp(): JSX.Element {
             setDomain(next);
           }}
           onClose={() => setDomainEditorOpen(false)}
+        />
+      )}
+
+      {credsEditorOpen && credsDraft && (
+        <CredentialsEditor
+          credentials={credsDraft}
+          onSave={async (next) => {
+            if (!provider) return;
+            await provider.writeText(CREDENTIALS_FILENAME, serializeCredentials(next));
+            await refresh();
+          }}
+          onClose={() => setCredsEditorOpen(false)}
         />
       )}
     </div>

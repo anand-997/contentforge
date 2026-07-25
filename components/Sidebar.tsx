@@ -30,7 +30,7 @@ function isBlankDomain(domain: ContentDomainConfig): boolean {
 }
 
 /** Known-good Deepseek model ids; anything else triggers a soft warning. */
-const KNOWN_DEEPSEEK_MODELS = ["deepseek-chat", "deepseek-reasoner", "deepseek-coder"];
+const KNOWN_DEEPSEEK_MODELS = ["deepseek-v4-flash", "deepseek-v4-pro"];
 
 export interface SidebarProps {
   status: StatusResponse | null;
@@ -474,7 +474,7 @@ function ConfigEditor({
         <span className="mb-1 flex items-center gap-1.5 text-xs text-subtext">
           Deepseek model
           <InfoTooltip
-            text="The text model that writes your posts. deepseek-chat is the safe default. Unrecognized names still save but are flagged."
+            text="The text model that writes your posts. deepseek-v4-flash is the safe default. Unrecognized names still save but are flagged."
             side="right"
           />
         </span>

@@ -49,7 +49,7 @@ export function FolderOnboarding(): JSX.Element {
   const otherDrives = recentDrives.slice(1);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-ink-900 px-4 py-10">
+    <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-lg space-y-6">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-teal/40 bg-teal/10 font-mono text-base font-bold text-teal">
@@ -70,29 +70,30 @@ export function FolderOnboarding(): JSX.Element {
             Nothing is stored on our servers.
           </p>
 
-          {/* Signature: the files we create, in plain terms. */}
+          {/* Trust strip: what's stored here, in plain terms — not how to edit
+              it. Editing now happens in Settings once a folder is connected. */}
           <ul className="mt-5 space-y-3">
             <FileRow
-              name="credentials.env"
-              desc="Where you paste your own API keys. We create it empty — you fill it in."
+              icon="🔑"
+              name="Your keys"
+              desc="credentials.env holds your own API keys. Stays on this device — edit them anytime from Settings."
             />
             <FileRow
-              name="content_calendar.xlsx"
-              desc="Your generated posts and history. Created if it isn't there yet."
+              icon="📅"
+              name="Your content"
+              desc="Posts, history, and generated images — written to content_calendar.xlsx and browsable right in the dashboard."
             />
             <FileRow
-              name="weekly-plan.json"
-              desc="Your week's themes and voices — one entry per weekday. Edit it to steer each day's content."
-            />
-            <FileRow
-              name="knowledge/"
-              desc="A folder for your source notes. Drop .pdf / .docx / .png files here to ground the day's content."
-            />
-            <FileRow
-              name="generation-log.json"
-              desc="A running history of what was generated, so repeat runs don't duplicate topics."
+              icon="📁"
+              name="Your notes"
+              desc="Drop .pdf / .docx / .png source material into the knowledge/ folder to ground the day's content."
             />
           </ul>
+          <p className="mt-3 px-0.5 text-xs text-subtext">
+            Once you&apos;re connected, brand, voice, pillars, weekly plan, and model
+            settings are all set up from <span className="text-white">Settings</span> —
+            no file editing required.
+          </p>
 
           {folderApiSupported ? (
             <>
@@ -252,14 +253,22 @@ export function FolderOnboarding(): JSX.Element {
   );
 }
 
-function FileRow({ name, desc }: { name: string; desc: string }): JSX.Element {
+function FileRow({
+  icon,
+  name,
+  desc,
+}: {
+  icon: string;
+  name: string;
+  desc: string;
+}): JSX.Element {
   return (
     <li className="flex gap-3 rounded-xl border border-hairline bg-ink-700/30 p-3">
       <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-teal/30 bg-teal/10 text-teal">
-        <span aria-hidden="true" className="text-xs">▤</span>
+        <span aria-hidden="true" className="text-xs">{icon}</span>
       </span>
       <div className="min-w-0">
-        <p className="font-mono text-sm font-semibold text-white">{name}</p>
+        <p className="text-sm font-semibold text-white">{name}</p>
         <p className="mt-0.5 text-xs text-subtext">{desc}</p>
       </div>
     </li>

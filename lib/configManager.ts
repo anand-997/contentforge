@@ -32,7 +32,7 @@ export const DEFAULT_CONFIG: ContentForgeConfig = {
     timezone: "Asia/Kolkata",
   },
   models: {
-    deepseekModel: "deepseek-chat",
+    deepseekModel: "deepseek-v4-flash",
     openaiImageModel: "gpt-image-1",
     deepseekBaseUrl: "https://api.deepseek.com",
     maxTokensPerCall: 4000,

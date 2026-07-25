@@ -14,6 +14,8 @@ import { ContentDomainEditor } from "./ContentDomainEditor";
 import { AgentPromptsEditor } from "./AgentPromptsEditor";
 import { WeeklyPlanEditor } from "./WeeklyPlanEditor";
 import { CredentialsEditor } from "./CredentialsEditor";
+import { ModelSettingsEditor, BLANK_MODEL_SETTINGS } from "./ModelSettingsEditor";
+import type { ModelSettings } from "./ModelSettingsEditor";
 import { UploadDownloadStorage, listRecentFolders } from "@/lib/client/storage";
 import { hasFullDriveGrant, isGoogleAuthError, listRecentDrives } from "@/lib/client/driveAuth";
 import { importLocalFolder, isImportSupported } from "@/lib/client/importLocal";
@@ -21,6 +23,7 @@ import type { ImportProgress, ImportResult } from "@/lib/client/importLocal";
 import { CREDENTIALS_FILENAME, serializeCredentials } from "@/lib/credentialsTemplate";
 import { parseCredentials } from "@/lib/client/credentials";
 import {
+  CONFIG_FILENAME,
   CONTENT_DOMAIN_FILENAME,
   PROMPTS_FILENAME,
   WEEKLY_PLAN_FILENAME,
@@ -92,6 +95,29 @@ function parseJsonOr<T>(text: string | null, fallback: T): T {
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// contentforge.config.json has many fields beyond `models` (scheduler,
+// autoPost, notifications, ...) that this editor doesn't touch — pull out
+// just the three model fields it exposes, defaulting anything missing or
+// malformed rather than requiring the whole file to validate.
+function extractModelSettings(raw: unknown): ModelSettings {
+  const models = isRecord(raw) && isRecord(raw.models) ? raw.models : {};
+  return {
+    deepseekModel:
+      typeof models.deepseekModel === "string"
+        ? models.deepseekModel
+        : BLANK_MODEL_SETTINGS.deepseekModel,
+    imageEngine: models.imageEngine === "openai" ? "openai" : "template",
+    openaiImageModel:
+      typeof models.openaiImageModel === "string"
+        ? models.openaiImageModel
+        : BLANK_MODEL_SETTINGS.openaiImageModel,
+  };
+}
+
 export function SettingsMenu(): JSX.Element {
   const {
     info,
@@ -131,8 +157,14 @@ export function SettingsMenu(): JSX.Element {
   const [domainDraft, setDomainDraft] = useState<ContentDomainConfig | null>(null);
   const [promptsDraft, setPromptsDraft] = useState<AgentPrompts | null>(null);
   const [planDraft, setPlanDraft] = useState<Record<Weekday, WeekdayPlan> | null>(null);
+  // Run settings — just the `models` slice of contentforge.config.json (see
+  // ModelSettingsEditor). configRaw keeps the rest of that file intact across
+  // a save, since this editor only knows about three of its many fields.
+  const [editingModels, setEditingModels] = useState(false);
+  const [modelsDraft, setModelsDraft] = useState<ModelSettings | null>(null);
+  const [configRaw, setConfigRaw] = useState<Record<string, unknown> | null>(null);
   const [loadingSection, setLoadingSection] = useState<
-    "domain" | "prompts" | "plan" | "creds" | null
+    "domain" | "prompts" | "plan" | "creds" | "models" | null
   >(null);
 
   const isDrive = info?.mode === "drive";
@@ -168,6 +200,20 @@ export function SettingsMenu(): JSX.Element {
       const text = await provider.readText(WEEKLY_PLAN_FILENAME);
       setPlanDraft(parseJsonOr(text, BLANK_PLAN));
       setEditingPlan(true);
+    } finally {
+      setLoadingSection(null);
+    }
+  }
+
+  async function openModelSettingsEditor(): Promise<void> {
+    if (!provider) return;
+    setLoadingSection("models");
+    try {
+      const text = await provider.readText(CONFIG_FILENAME);
+      const raw = parseJsonOr<Record<string, unknown>>(text, {});
+      setConfigRaw(raw);
+      setModelsDraft(extractModelSettings(raw));
+      setEditingModels(true);
     } finally {
       setLoadingSection(null);
     }
@@ -489,6 +535,24 @@ export function SettingsMenu(): JSX.Element {
             </button>
           </div>
 
+          <div className="mt-3 border-t border-hairline pt-2">
+            <p className="px-0.5 text-[10px] font-medium uppercase tracking-wide text-subtext">
+              Run settings
+            </p>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={busy || loadingSection !== null}
+              onClick={() => {
+                setOpen(false);
+                void openModelSettingsEditor();
+              }}
+              className="focus-ring mt-1 flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm text-teal hover:bg-teal/10 disabled:opacity-50"
+            >
+              Model settings
+            </button>
+          </div>
+
           {(isDrive || info?.mode === "folder") && (
             <div className="mt-3 border-t border-hairline pt-2">
               <button
@@ -644,6 +708,22 @@ export function SettingsMenu(): JSX.Element {
             await provider.writeText(WEEKLY_PLAN_FILENAME, JSON.stringify(next, null, 2));
           }}
           onClose={() => setEditingPlan(false)}
+        />
+      )}
+      {editingModels && modelsDraft && (
+        <ModelSettingsEditor
+          settings={modelsDraft}
+          onSave={async (next) => {
+            if (!provider) return;
+            const existingModels = isRecord(configRaw?.models) ? configRaw.models : {};
+            const merged = {
+              ...(configRaw ?? {}),
+              models: { ...existingModels, ...next },
+            };
+            await provider.writeText(CONFIG_FILENAME, JSON.stringify(merged, null, 2));
+            setConfigRaw(merged);
+          }}
+          onClose={() => setEditingModels(false)}
         />
       )}
       {editingCreds && credsDraft && (

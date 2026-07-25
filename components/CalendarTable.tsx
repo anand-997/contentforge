@@ -178,7 +178,7 @@ function DesktopRow({
       <td className="px-4 py-2.5 text-xs text-subtext">{row.postStructure}</td>
       <td className="px-4 py-2.5">
         <div className="flex items-center gap-1.5">
-          <StatusBadge status={row.status} size="sm" />
+          <StatusBadge status={row.status} size="sm" live={false} />
           <PublishProgressChip row={row} />
         </div>
       </td>
@@ -205,7 +205,7 @@ function MobileCard({
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-xs text-subtext">{row.date}</span>
         <div className="flex items-center gap-1.5">
-          <StatusBadge status={row.status} size="sm" />
+          <StatusBadge status={row.status} size="sm" live={false} />
           <PublishProgressChip row={row} />
         </div>
       </div>

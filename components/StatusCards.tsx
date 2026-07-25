@@ -71,7 +71,7 @@ export function StatusCards({
         accent={accentForStatus(effectiveStatus)}
       >
         <div className="flex items-center gap-2">
-          <StatusBadge status={effectiveStatus} />
+          <StatusBadge status={effectiveStatus} live={running} />
           {running && (
             <span className="ml-auto font-mono text-sm font-semibold text-status-imaging">
               {Math.round(progress)}%

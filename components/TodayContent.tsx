@@ -126,7 +126,7 @@ export function TodayContent({
           </h2>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <StatusBadge status={status} />
+          <StatusBadge status={status} live={pipelineRunning} />
           {onRegenerate && (
             <button
               type="button"
@@ -169,6 +169,30 @@ export function TodayContent({
           )}
         </div>
       </div>
+
+      {!pipelineRunning &&
+        !today.errorMessage.trim() &&
+        (status === "Writing" || status === "Imaging") && (
+          <div className="flex flex-col gap-3 rounded-xl border border-status-imaging/40 bg-status-imaging/10 p-3 text-sm text-status-imaging sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-2">
+              <span aria-hidden="true">⏸</span>
+              <span>
+                This day stopped mid-{status === "Writing" ? "writing" : "imaging"} from
+                an earlier interrupted run (closed tab, network drop, or a server
+                timeout) — nothing is generating right now. Tap Generate to resume
+                from where it left off.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={onRun}
+              className="focus-ring flex min-h-[40px] shrink-0 items-center gap-2 self-start rounded-lg border border-status-imaging/50 bg-status-imaging/15 px-4 py-2 text-xs font-semibold text-status-imaging transition-all hover:bg-status-imaging/25 active:scale-[0.98]"
+            >
+              <span aria-hidden="true">▶</span>
+              Resume generating
+            </button>
+          </div>
+        )}
 
       {today.errorMessage.trim() &&
         (today.status === "Done" ? (

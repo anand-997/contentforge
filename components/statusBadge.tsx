@@ -59,12 +59,23 @@ export interface StatusBadgeProps {
   /** Show the small text label next to the dot. Defaults to true. */
   showLabel?: boolean;
   size?: "sm" | "md";
+  /**
+   * Whether a generation is actually running right now. `Writing`/`Imaging`
+   * are "active" states, but that's the row's last-persisted status, not
+   * proof something is currently happening — an interrupted run (closed tab,
+   * network drop, server timeout) leaves the row frozen on one of these
+   * forever. Without this flag the badge would spin indefinitely for a
+   * stalled row, indistinguishable from a run actually in progress. Defaults
+   * to true for callers that don't track liveness (matches prior behavior).
+   */
+  live?: boolean;
 }
 
 export function StatusBadge({
   status,
   showLabel = true,
   size = "md",
+  live = true,
 }: StatusBadgeProps): JSX.Element {
   const meta = STATUS_META[status];
   const pad = size === "sm" ? "px-2 py-0.5 text-[0.68rem]" : "px-2.5 py-1 text-xs";
@@ -75,7 +86,7 @@ export function StatusBadge({
       aria-label={`Status: ${meta.label}`}
       className={`inline-flex items-center gap-1.5 rounded-full border font-medium ${pad} ${meta.className}`}
     >
-      {meta.active ? (
+      {meta.active && live ? (
         <Spinner className={meta.dotClass} />
       ) : (
         <span

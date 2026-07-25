@@ -375,7 +375,7 @@ export function TopicDetailModal({
               <span>updated {relativeTime(row.lastUpdated)}</span>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <StatusBadge status={row.status} size="sm" />
+              <StatusBadge status={row.status} size="sm" live={false} />
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[0.68rem] font-medium ${
                   progress.published === progress.total && progress.total > 0

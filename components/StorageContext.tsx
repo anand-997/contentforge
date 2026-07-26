@@ -760,7 +760,7 @@ export function StorageProviderRoot({
       // so this is always safe to just resume from where it left off.
       setError(
         isTransientNetworkError(err)
-          ? "Connection interrupted (often happens when your screen locks mid-generation). Your progress up to the last completed step was saved — tap Generate again to continue."
+          ? "Connection interrupted (often happens when your screen locks mid-generation). Your progress up to the last completed step was saved."
           : messageFrom(err),
       );
     } finally {

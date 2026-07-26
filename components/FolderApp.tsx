@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChecklistItem, ContentDomainConfig, ContentRow } from "@/lib/types";
 import { ContentTabs } from "./ContentTabs";
+import { ErrorBanner } from "./ErrorBanner";
 import { SettingsMenu } from "./SettingsMenu";
 import { FolderOnboarding } from "./FolderOnboarding";
 import { ContentDomainEditor } from "./ContentDomainEditor";
@@ -388,9 +389,11 @@ function FolderApp(): JSX.Element {
         )}
 
         {error && (
-          <p role="alert" className="rounded-lg border border-status-error/40 bg-status-error/10 p-3 text-sm text-status-error">
-            {error}
-          </p>
+          <ErrorBanner
+            message={error}
+            onRetry={() => void generateToday()}
+            disabled={generating}
+          />
         )}
         {note && !error && (
           <p className="rounded-lg border border-teal/30 bg-teal/10 p-3 text-sm text-teal">{note}</p>

@@ -14,6 +14,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { StatusCards } from "@/components/StatusCards";
 import { ContentTabs } from "@/components/ContentTabs";
 import { LiveLogFeed } from "@/components/LiveLogFeed";
+import { ErrorBanner } from "@/components/ErrorBanner";
 import { ToastProvider, useToast } from "@/components/ui";
 import { LoadingProvider, useGlobalLoading } from "@/components/LoadingProvider";
 import type { Platform, PublishState } from "@/lib/publishStatus";
@@ -603,44 +604,6 @@ function Dashboard(): JSX.Element {
         secondsSinceUpdate={secondsSinceUpdate}
         serverReachable={serverReachable}
       />
-    </div>
-  );
-}
-
-function ErrorBanner({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry: () => void;
-}): JSX.Element {
-  // Strip the noisy "Pipeline failed: Error:" prefix for a cleaner read.
-  const clean = message
-    .replace(/^Pipeline failed:\s*/i, "")
-    .replace(/^Error:\s*/i, "");
-  return (
-    <div
-      role="alert"
-      className="flex flex-col gap-3 rounded-xl border border-status-error/40 bg-status-error/10 p-4 sm:flex-row sm:items-center sm:justify-between animate-fade-up"
-    >
-      <div className="flex items-start gap-2.5">
-        <span aria-hidden="true" className="mt-0.5 text-status-error">
-          ⚠
-        </span>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-white">
-            The pipeline stopped with an error
-          </p>
-          <p className="mt-0.5 break-words text-sm text-subtext">{clean}</p>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="focus-ring shrink-0 self-start rounded-lg border border-teal/50 bg-teal/10 px-4 py-2 text-sm font-semibold text-teal transition-colors hover:bg-teal/20 sm:self-auto"
-      >
-        ▶ Run again
-      </button>
     </div>
   );
 }
